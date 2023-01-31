@@ -7,7 +7,10 @@ class TaskApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      home: Branch(),
+      theme: ThemeData(
+        useMaterial3: true,
+      ),
+      home: BranchScreen(),
     );
   }
 }

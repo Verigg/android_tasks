@@ -1,80 +1,59 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/svg.dart';
+import 'TaskClass.dart';
+import 'Menu.dart';
 
-enum Menu { hideDone, onlyFavorite, deleteDone, editThread }
-
-class Task {
-  bool isFavorite = false;
-  bool isDone = false;
-  late int id;
-  late String text;
-  void display() {
-    print("String: $String id: $id");
-  }
-
-  Task(String txt) {
-    text = txt;
-  }
-}
-
-class Branch extends StatefulWidget {
-  const Branch({super.key});
-
+class BranchScreen extends StatefulWidget {
+  const BranchScreen({super.key});
   @override
-  State<Branch> createState() => _BranchState();
+  State<BranchScreen> createState() => _BranchState();
 }
 
-class _BranchState extends State<Branch> {
-  List<Task> allTasks = [];
-  List<Task> visibleTasks = [];
-  bool onlyFavorite = false;
-  bool hideDone = false;
-  String title = 'Учёба';
+class _BranchState extends State<BranchScreen> {
+  List<Task> _allTasks = [];
+  List<Task> _visibleTasks = [];
+  bool _onlyFavorite = false;
+  bool _hideDone = false;
+  String _title = 'Учёба';
 
-  final _textField = GlobalKey<FormState>();
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      theme: ThemeData(
-        useMaterial3: true,
+    return Scaffold(
+      appBar: AppBar(
+        centerTitle: true,
+        foregroundColor: Colors.white,
+        backgroundColor: Colors.deepPurple,
+        title: Text(_title),
+        actions: [EditButton()],
       ),
-      home: Scaffold(
-        appBar: AppBar(
-          centerTitle: true,
-          foregroundColor: Colors.white,
-          backgroundColor: Colors.deepPurple,
-          title: Text(title),
-          actions: <Widget>[EditButton()],
-        ),
-        body: _TaskList(_visibleTasks(allTasks, onlyFavorite, hideDone)),
-        backgroundColor: Colors.deepPurpleAccent,
-        floatingActionButton: _addTask(allTasks),
-      ),
+      body: _TaskList(_visibleTasks),
+      backgroundColor: Colors.deepPurpleAccent,
+      floatingActionButton: _buildAddTaskFab(_allTasks),
     );
   }
 
-  List<Task> _visibleTasks(List<Task> tasks, bool onlyFavorite, bool hideDone) {
+  List<Task> _visibleTasksConstructor({required List<Task> tasks, required bool onlyFavorite, required bool isDone}) {
     List<Task> out = [];
     out.addAll(tasks);
     if (onlyFavorite) {
-      out.removeWhere((element) => element.isFavorite == false);
+      out.removeWhere((task) => !task.isFavorite);
     }
-    if (hideDone) {
-      out.removeWhere((element) => element.isDone == true);
+    if (_hideDone) {
+      out.removeWhere((task) => task.isDone);
     }
     return out;
   }
 
-  Widget _addTask(List tasks) {
+  Widget _buildAddTaskFab(List tasks) {
     return FloatingActionButton(
-      onPressed: () => _dialogCreateTask(context),
+      onPressed: () => _showCreateTaskDialog(context),
       backgroundColor: Colors.deepPurple,
       child: const Icon(Icons.add),
     );
   }
 
-  Future<void> _dialogCreateTask(BuildContext context) {
+  Future<void> _showCreateTaskDialog(BuildContext context) {
     late String text;
     return showDialog<void>(
       context: context,
@@ -82,57 +61,110 @@ class _BranchState extends State<Branch> {
         return AlertDialog(
           title: const Text('Создать задачу'),
           actions: <Widget>[
-            Form(
-              key: _textField,
-              child: TextFormField(
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Название не может быть пустым';
-                  }
-                  if (value.length > 40) {
-                    return "Название слишком длинное";
-                  }
-                  return null;
-                },
-                maxLengthEnforcement: MaxLengthEnforcement.none,
-                maxLength: 40,
-                decoration: InputDecoration(
-                  labelText: 'Введите название задачи',
+            Form(child: Builder(builder: (context) {
+              return Column(children: [
+                TextFormField(
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Название не может быть пустым';
+                    }
+                    if (value.length > 40) {
+                      return "Название слишком длинное";
+                    }
+                    return null;
+                  },
+                  maxLengthEnforcement: MaxLengthEnforcement.none,
+                  maxLength: 40,
+                  decoration: InputDecoration(
+                    labelText: 'Введите название задачи',
+                  ),
+                  onChanged: (String value) {
+                    text = value;
+                  },
                 ),
-                onChanged: (String value) {
-                  text = value;
-                },
-              ),
-            ),
-            Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-              TextButton(
-                style: TextButton.styleFrom(
-                  textStyle: Theme.of(context).textTheme.labelLarge,
-                ),
-                child: const Text('Отмена'),
-                onPressed: () {
-                  Navigator.of(context).pop();
-                },
-              ),
-              TextButton(
-                style: TextButton.styleFrom(
-                  textStyle: Theme.of(context).textTheme.labelLarge,
-                ),
-                child: const Text('Ок'),
-                onPressed: () {
-                  if (_textField.currentState!.validate()) {
-                    Task newTask = Task(text);
-                    setState(() {
-                      allTasks.add(newTask);
-                    });
-                    Navigator.of(context).pop();
-                  }
-                },
-              )
-            ]),
+                Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+                  TextButton(
+                    style: TextButton.styleFrom(
+                      textStyle: Theme.of(context).textTheme.labelLarge,
+                    ),
+                    child: const Text('Отмена'),
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                    },
+                  ),
+                  TextButton(
+                    style: TextButton.styleFrom(
+                      textStyle: Theme.of(context).textTheme.labelLarge,
+                    ),
+                    child: const Text('Ок'),
+                    onPressed: () {
+                      if (Form.of(context)!.validate()) {
+                        final newTask = Task(title: text, id: _allTasks.length);
+                        setState(() {
+                          _allTasks.add(newTask);
+                          if (!_onlyFavorite) {
+                            _visibleTasks.add(newTask);
+                          }
+                        });
+                        Navigator.of(context).pop();
+                      }
+                    },
+                  )
+                ]),
+              ]);
+            }))
           ],
         );
       },
+    );
+  }
+
+  Widget _taskCard({required List tasks, required int index}) {
+    return Padding(
+      padding: EdgeInsets.all(6.0),
+      child: Dismissible(
+        background: Container(
+          color: Colors.red,
+          child: Container(margin: EdgeInsets.only(left: 320.0), child: Icon(Icons.delete_forever)),
+        ),
+        key: ValueKey<int>(tasks[index].id),
+        onDismissed: (DismissDirection direction) {
+          setState(() {
+            _allTasks.remove(tasks[index]);
+            _visibleTasks.remove(tasks[index]);
+          });
+        },
+        direction: DismissDirection.endToStart,
+        child: CheckboxListTile(
+          contentPadding: EdgeInsets.symmetric(horizontal: 8.0),
+          checkboxShape: CircleBorder(),
+          tileColor: Colors.white,
+          controlAffinity: ListTileControlAffinity.leading,
+          title: Text(tasks[index].title),
+          value: tasks[index].isDone,
+          onChanged: (bool? value) {
+            setState(() {
+              tasks[index].isDone = !tasks[index].isDone;
+            });
+          },
+          secondary: IconButton(
+            iconSize: 30,
+            color: Colors.amber,
+            isSelected: tasks[index].isFavorite,
+            icon: const Icon(
+              Icons.star_border,
+            ),
+            selectedIcon: const Icon(
+              Icons.star,
+            ),
+            onPressed: () {
+              setState(() {
+                tasks[index].isFavorite = !tasks[index].isFavorite;
+              });
+            },
+          ),
+        ),
+      ),
     );
   }
 
@@ -142,52 +174,16 @@ class _BranchState extends State<Branch> {
       return ListView.builder(
           itemCount: tasks.length,
           itemBuilder: (context, index) {
-            return Padding(
-                padding: EdgeInsets.all(6.0),
-                child: Dismissible(
-                    background: Container(
-                      color: Colors.red,
-                      child: Icon(Icons.delete_forever),
-                    ),
-                    key: ValueKey<Task>(tasks[index]),
-                    onDismissed: (DismissDirection direction) {
-                      setState(() {
-                        allTasks.remove(tasks[index]);
-                      });
-                    },
-                    direction: DismissDirection.endToStart,
-                    child: CheckboxListTile(
-                        contentPadding: EdgeInsets.symmetric(horizontal: 8.0),
-                        checkboxShape: CircleBorder(),
-                        tileColor: Colors.white,
-                        controlAffinity: ListTileControlAffinity.leading,
-                        title: Text(tasks[index].text),
-                        value: tasks[index].isDone,
-                        onChanged: (bool? value) {
-                          setState(() {
-                            tasks[index].isDone = !tasks[index].isDone;
-                          });
-                        },
-                        secondary: IconButton(
-                          iconSize: 30,
-                          color: Colors.amber,
-                          isSelected: tasks[index].isFavorite,
-                          icon: const Icon(
-                            Icons.star_border,
-                          ),
-                          selectedIcon: const Icon(
-                            Icons.star,
-                          ),
-                          onPressed: () {
-                            setState(() {
-                              tasks[index].isFavorite = !tasks[index].isFavorite;
-                            });
-                          },
-                        ))));
+            return _taskCard(tasks: tasks, index: index);
           });
     } else {
-      return Center(
-          child: Column(
+      return _taskListBackground();
+    }
+  }
+
+  Widget _taskListBackground() {
+    return Center(
+      child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Stack(
@@ -201,45 +197,46 @@ class _BranchState extends State<Branch> {
             style: TextStyle(fontSize: 20),
           ),
         ],
-      ));
-    }
+      ),
+    );
   }
 
-  @override
-  Future<void> _dialogDeleteAlert(BuildContext context) {
+  Future<void> _showDeleteCompletedConfirmationDialog(BuildContext context) {
     return showDialog<void>(
         context: context,
         builder: (BuildContext context) {
-          return AlertDialog(title: const Text('Подтвердите удаление'), actions: <Widget>[
-            Text("Удалить выполненные задачи? Это действие необратимо."),
-            Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-              TextButton(
-                style: TextButton.styleFrom(
-                  textStyle: Theme.of(context).textTheme.labelLarge,
-                ),
-                child: const Text('Отмена'),
-                onPressed: () {
-                  Navigator.of(context).pop();
-                },
-              ),
-              TextButton(
-                style: TextButton.styleFrom(
-                  textStyle: Theme.of(context).textTheme.labelLarge,
-                ),
-                child: const Text('Ок'),
-                onPressed: () {
-                  allTasks.removeWhere((element) => element.isDone == true);
-                  setState(() {});
-                  Navigator.of(context).pop();
-                },
-              )
-            ]),
-          ]);
+          return AlertDialog(
+              title: const Text('Подтвердите удаление'),
+              content: Text("Удалить выполненные задачи? Это действие необратимо."),
+              actions: <Widget>[
+                Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+                  TextButton(
+                    style: TextButton.styleFrom(
+                      textStyle: Theme.of(context).textTheme.labelLarge,
+                    ),
+                    child: const Text('Отмена'),
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                    },
+                  ),
+                  TextButton(
+                    style: TextButton.styleFrom(
+                      textStyle: Theme.of(context).textTheme.labelLarge,
+                    ),
+                    child: const Text('Ок'),
+                    onPressed: () {
+                      _allTasks.removeWhere((task) => task.isDone);
+                      _visibleTasks.removeWhere((task) => task.isDone);
+                      setState(() {});
+                      Navigator.of(context).pop();
+                    },
+                  )
+                ]),
+              ]);
         });
   }
 
-  @override
-  Future<void> _dialogEditThread(BuildContext context) {
+  Future<void> _showEditBranchTitleDialog(BuildContext context) {
     late String text;
     return showDialog<void>(
       context: context,
@@ -247,53 +244,54 @@ class _BranchState extends State<Branch> {
         return AlertDialog(
           title: const Text('Редактировать ветку'),
           actions: <Widget>[
-            Form(
-              key: _textField,
-              child: TextFormField(
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Название не может быть пустым';
-                  }
-                  if (value.length > 40) {
-                    return "Название слишком длинное";
-                  }
-                  return null;
-                },
-                maxLengthEnforcement: MaxLengthEnforcement.none,
-                maxLength: 40,
-                decoration: InputDecoration(
-                  labelText: 'Введите название ветки',
+            Form(child: Builder(builder: (context) {
+              return Column(children: [
+                TextFormField(
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Название не может быть пустым';
+                    }
+                    if (value.length > 40) {
+                      return "Название слишком длинное";
+                    }
+                    return null;
+                  },
+                  maxLengthEnforcement: MaxLengthEnforcement.none,
+                  maxLength: 40,
+                  decoration: InputDecoration(
+                    labelText: 'Введите название ветки',
+                  ),
+                  onChanged: (String value) {
+                    text = value;
+                  },
                 ),
-                onChanged: (String value) {
-                  text = value;
-                },
-              ),
-            ),
-            Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-              TextButton(
-                style: TextButton.styleFrom(
-                  textStyle: Theme.of(context).textTheme.labelLarge,
-                ),
-                child: const Text('Отмена'),
-                onPressed: () {
-                  Navigator.of(context).pop();
-                },
-              ),
-              TextButton(
-                style: TextButton.styleFrom(
-                  textStyle: Theme.of(context).textTheme.labelLarge,
-                ),
-                child: const Text('Ок'),
-                onPressed: () {
-                  if (_textField.currentState!.validate()) {
-                    setState(() {
-                      title = text;
-                    });
-                    Navigator.of(context).pop();
-                  }
-                },
-              )
-            ]),
+                Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+                  TextButton(
+                    style: TextButton.styleFrom(
+                      textStyle: Theme.of(context).textTheme.labelLarge,
+                    ),
+                    child: const Text('Отмена'),
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                    },
+                  ),
+                  TextButton(
+                    style: TextButton.styleFrom(
+                      textStyle: Theme.of(context).textTheme.labelLarge,
+                    ),
+                    child: const Text('Ок'),
+                    onPressed: () {
+                      if (Form.of(context)!.validate()) {
+                        setState(() {
+                          _title = text;
+                        });
+                        Navigator.of(context).pop();
+                      }
+                    },
+                  )
+                ]),
+              ]);
+            }))
           ],
         );
       },
@@ -311,19 +309,23 @@ class _BranchState extends State<Branch> {
         onSelected: (Menu item) {
           if (item == Menu.hideDone) {
             setState(() {
-              hideDone = !hideDone;
+              _hideDone = !_hideDone;
+              _visibleTasks =
+                  _visibleTasksConstructor(tasks: _allTasks, onlyFavorite: _onlyFavorite, isDone: _hideDone);
             });
           }
           if (item == Menu.onlyFavorite) {
             setState(() {
-              onlyFavorite = !onlyFavorite;
+              _onlyFavorite = !_onlyFavorite;
+              _visibleTasks =
+                  _visibleTasksConstructor(tasks: _allTasks, onlyFavorite: _onlyFavorite, isDone: _hideDone);
             });
           }
           if (item == Menu.deleteDone) {
-            _dialogDeleteAlert(context);
+            _showDeleteCompletedConfirmationDialog(context);
           }
           if (item == Menu.editThread) {
-            _dialogEditThread(context);
+            _showEditBranchTitleDialog(context);
           }
         },
         itemBuilder: (BuildContext context) => <PopupMenuEntry<Menu>>[
@@ -331,15 +333,15 @@ class _BranchState extends State<Branch> {
                   value: Menu.hideDone,
                   child: ListTile(
                     contentPadding: EdgeInsets.symmetric(horizontal: 4),
-                    leading: Icon(_hideDoneButtonIcon[hideDone ? 1 : 0]),
-                    title: Text(_hideDoneButtonText[hideDone ? 1 : 0]),
+                    leading: Icon(_hideDoneButtonIcon[_hideDone ? 1 : 0]),
+                    title: Text(_hideDoneButtonText[_hideDone ? 1 : 0]),
                   )),
               PopupMenuItem<Menu>(
                 value: Menu.onlyFavorite,
                 child: ListTile(
                   contentPadding: EdgeInsets.symmetric(horizontal: 4),
-                  leading: Icon(_onlyFavoriteButtonIcon[onlyFavorite ? 1 : 0]),
-                  title: Text(_onlyFavoriteButtonText[onlyFavorite ? 1 : 0]),
+                  leading: Icon(_onlyFavoriteButtonIcon[_onlyFavorite ? 1 : 0]),
+                  title: Text(_onlyFavoriteButtonText[_onlyFavorite ? 1 : 0]),
                 ),
               ),
               const PopupMenuItem<Menu>(
